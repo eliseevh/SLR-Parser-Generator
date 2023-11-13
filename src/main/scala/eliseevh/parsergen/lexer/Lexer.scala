@@ -14,8 +14,8 @@ case class Lexer(grammar: Grammar) {
     } else {
       grammar.tryMatch(restInput) match {
         case None => throw new RuntimeException(s"Cannot tokenize '$restInput'")
-        case Some(token) =>
-          loop(restInput.substring(token.text.length), token :: tokenized)
+        case Some((token, rest)) =>
+          loop(rest, token :: tokenized)
       }
     }
     loop(input, Nil)

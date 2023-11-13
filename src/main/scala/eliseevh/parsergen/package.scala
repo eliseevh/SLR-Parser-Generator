@@ -7,7 +7,7 @@ import scala.util.Try
 
 package object parsergen {
   def terminals(rules: LexerRule*): eliseevh.parsergen.lexer.Grammar = {
-    eliseevh.parsergen.lexer.Grammar(rules.map(_.toRule).toSet)
+    eliseevh.parsergen.lexer.Grammar(rules.map(_.toRule).toList)
   }
 
   def nonTerminals(
@@ -15,7 +15,9 @@ package object parsergen {
       rules: GrammarRule*
   ): eliseevh.parsergen.lexer.Grammar => eliseevh.parsergen.grammar.Grammar =
     lexerGrammar => {
-      val terminals = lexerGrammar.rules.map(_.terminal)
+      val terminals = lexerGrammar.rules.collect {
+        case eliseevh.parsergen.lexer.NormalRule(_, terminal) => terminal
+      }
       val terminalNames = terminals.map(_.name)
       eliseevh.parsergen.grammar.Grammar(
         eliseevh.parsergen.grammar.NonTerminal(startRule),
@@ -60,8 +62,15 @@ package object parsergen {
   object EMPTY_RULE extends RuleRhs(Nil)
 
   implicit class LexerRule(val pair: (String, String)) extends AnyVal {
-    def toRule: eliseevh.parsergen.lexer.Rule = eliseevh.parsergen.lexer
-      .Rule(pair._1.r, eliseevh.parsergen.grammar.Terminal(pair._2))
+    def toRule: eliseevh.parsergen.lexer.Rule = pair._2 match {
+      case "skip" => eliseevh.parsergen.lexer.SkipRule(pair._1.r)
+      case terminalName =>
+        eliseevh.parsergen.lexer
+          .NormalRule(
+            pair._1.r,
+            eliseevh.parsergen.grammar.Terminal(terminalName)
+          )
+    }
   }
 
   class GrammarDSL(
