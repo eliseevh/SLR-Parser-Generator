@@ -1,14 +1,16 @@
 package eliseevh.parsergen.parser
 
+import eliseevh.parsergen.generic.grammar.NonTerminalRule
+import eliseevh.parsergen.generic.{NonTerminalDescriptor, TerminalDescriptor}
 import eliseevh.parsergen.grammar._
 import eliseevh.parsergen.parser.state.MultiState
 
 import scala.annotation.tailrec
 
 case class Mapping(
-    terminals: Map[Terminal, Int],
-    nonTerminals: Map[NonTerminal, Int],
-    rules: Map[Rule, Int],
+    terminals: Map[TerminalDescriptor[?], Int],
+    nonTerminals: Map[NonTerminalDescriptor[?], Int],
+    rules: Map[NonTerminalRule[?], Int],
     states: Map[MultiState, Int]
 )
 
@@ -17,7 +19,7 @@ object Mapping {
     val terminals = mappingFromList(grammar.terminals.toList)
     val nonTerminals =
       mappingFromList(grammar.nonTerminals.toList, terminals.size)
-    val rules = mappingFromList(grammar.rules.toList)
+    val rules = mappingFromList(grammar.nonTerminalRules.toList)
     val allStates = table.terminalPart.keySet.map(
       _._1
     ) ++ table.nonTerminalPart.keySet.map(_._1)

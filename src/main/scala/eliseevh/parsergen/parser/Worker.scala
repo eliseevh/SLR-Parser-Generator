@@ -1,5 +1,9 @@
 package eliseevh.parsergen.parser
 
+import eliseevh.parsergen.generic.NonTerminalDescriptor.ExtraStarting
+import eliseevh.parsergen.generic.TerminalDescriptor.Eof
+import eliseevh.parsergen.generic.{ElementDescriptor, NonTerminalDescriptor, TerminalDescriptor}
+import eliseevh.parsergen.generic.grammar.NonTerminalRule
 import eliseevh.parsergen.grammar._
 import eliseevh.parsergen.lexer.Lexer
 import eliseevh.parsergen.parser.Worker.{FirstType, FollowType}
@@ -22,52 +26,48 @@ case class Worker private (
                             table: Table,
                             preParser: Parser,
                             lexer: Lexer,
-                            mapping: Mapping
 )
 
 object Worker {
-  type FirstType = Map[NonTerminal, Set[Option[NormalTerminal]]]
-  type FollowType = Map[NonTerminal, Set[Option[Terminal]]]
+  type FirstType = Map[NonTerminalDescriptor[?], Set[Option[TerminalDescriptor[?]]]]
+  type FollowType = Map[NonTerminalDescriptor[?], Set[Option[TerminalDescriptor[?]]]]
   def apply(
-      grammar: Grammar,
-      lexerGrammar: eliseevh.parsergen.lexer.Grammar
+      grammar: Grammar
   ): Worker = {
     val first = getFirst(grammar)
     val follow = getFollow(grammar, first)
     val unitedTable = getUnitedTable(grammar, follow)
     val terminalPart = unitedTable.collect {
-      case ((state, terminal: Terminal), action) => (state, terminal) -> action
+      case ((state, terminal: TerminalDescriptor[?]), action) => (state, terminal) -> action
     }
     val nonTerminalPart = unitedTable.collect {
-      case ((state, nonTerminal: NonTerminal), Shift(nextState)) =>
+      case ((state, nonTerminal: NonTerminalDescriptor[?]), Shift(nextState)) =>
         (state, nonTerminal) -> nextState
     }
     val table = Table(terminalPart, nonTerminalPart)
     val preParser = Parser(table, MultiState.fromGrammar(grammar))
-    val mapping = Mapping.fromGrammarAndTable(grammar, table)
     Worker(
       grammar,
       first,
       follow,
       table,
       preParser,
-      Lexer(lexerGrammar),
-      mapping
+      Lexer(grammar),
     )
   }
 
   private def applyFirst(
       first: FirstType,
-      seq: List[GrammarSymbol]
-  ): Set[Option[NormalTerminal]] = {
+      seq: List[ElementDescriptor[?]]
+  ): Set[Option[TerminalDescriptor[?]]] = {
     @tailrec def loop(
-        symbols: List[GrammarSymbol],
-        got: Set[Option[NormalTerminal]]
-    ): Set[Option[NormalTerminal]] = symbols match {
+        symbols: List[ElementDescriptor[?]],
+        got: Set[Option[TerminalDescriptor[?]]]
+    ): Set[Option[TerminalDescriptor[?]]] = symbols match {
       case Nil                      => got + None
-      case (v: NormalTerminal) :: _ => got + Some(v)
       case Eof :: _                 => got
-      case (v: NonTerminal) :: rest =>
+      case (v: TerminalDescriptor[?]) :: _ => got + Some(v)
+      case (v: NonTerminalDescriptor[?]) :: rest =>
         val firstV = first(v)
         if (firstV(None)) {
           loop(rest, got ++ (firstV - None))
@@ -80,12 +80,12 @@ object Worker {
   }
 
   private def getFirst(grammar: Grammar): FirstType = {
-    val rules = grammar.rules + startRule(grammar)
+    val rules = grammar.nonTerminalRules + startRule(grammar)
     @tailrec
     def loop(first: FirstType): FirstType = {
       val nextFirst = seqToMap(
         first.toSeq ++ rules.toSeq
-          .map { case Rule(leftSide, rightSide) =>
+          .map { case NonTerminalRule(leftSide, rightSide, conversion) =>
             leftSide -> applyFirst(first, rightSide)
           }
       )
@@ -102,7 +102,7 @@ object Worker {
   }
 
   private def getFollow(grammar: Grammar, first: FirstType): FollowType = {
-    val rules = grammar.rules + startRule(grammar)
+    val rules = grammar.nonTerminalRules + startRule(grammar)
     val initial: FollowType =
       (Map.from(
         grammar.nonTerminals.map(_ -> Set())
@@ -111,9 +111,9 @@ object Worker {
     def loop(follow: FollowType): FollowType = {
       val nextFollow =
         seqToMap(follow.toSeq ++ rules.toSeq.flatMap {
-          case Rule(leftSide, rightSide) =>
-            rightSide.scanRight(Nil: List[GrammarSymbol])(_ :: _).collect {
-              case (nonTerminal: NonTerminal) :: rest =>
+          case NonTerminalRule(leftSide, rightSide, conversion) =>
+            rightSide.scanRight(Nil: List[ElementDescriptor[?]])(_ :: _).collect {
+              case (nonTerminal: NonTerminalDescriptor[?]) :: rest =>
                 val firstOfRest = applyFirst(first, rest)
                 val additional = if (firstOfRest.contains(None)) {
                   follow(leftSide)
@@ -135,24 +135,24 @@ object Worker {
   private def getUnitedTable(
       grammar: Grammar,
       follow: FollowType
-  ): Map[(MultiState, GrammarSymbol), Action] = {
-    val rules = grammar.rules + startRule(grammar)
+  ): Map[(MultiState, ElementDescriptor[?]), Action] = {
+    val rules = grammar.nonTerminalRules + startRule(grammar)
     // Return used states and row with that state
     def fillRow(
         state: MultiState
-    ): (Set[MultiState], Map[GrammarSymbol, Action]) = {
-      val row: Map[GrammarSymbol, Action] = Map
+    ): (Set[MultiState], Map[ElementDescriptor[?], Action]) = {
+      val row: Map[ElementDescriptor[?], Action] = Map
         .from(for {
-          symbol <- grammar.nonTerminals ++ grammar.terminals
+          symbol <- grammar.nonTerminals ++ grammar.terminals + Eof
         } yield symbol -> {
           val shiftVariant = state.shiftVariant(rules, symbol)
           val default =
             if (shiftVariant.isEmpty) None else Some(Shift(shiftVariant))
           symbol match {
-            case terminal: Terminal =>
+            case terminal: TerminalDescriptor[?] =>
               val reduceVariants = state
                 .reduceVariants()
-                .filter { case Rule(leftSide, _) =>
+                .filter { case NonTerminalRule(leftSide, _, conversion) =>
                   follow(leftSide)(Some(terminal))
                 }
                 .toList
@@ -181,9 +181,9 @@ object Worker {
     }
     @tailrec
     def loop(
-        table: Map[(MultiState, GrammarSymbol), Action],
+        table: Map[(MultiState, ElementDescriptor[?]), Action],
         left: List[MultiState]
-    ): Map[(MultiState, GrammarSymbol), Action] = {
+    ): Map[(MultiState, ElementDescriptor[?]), Action] = {
       left match {
         case Nil => table
         case state :: rest =>
@@ -201,8 +201,10 @@ object Worker {
     loop(Map(), List(MultiState.fromGrammar(grammar)))
   }
 
-  private def startRule(grammar: Grammar): Rule = Rule(
-    ExtraStarting -> List(grammar.start)
+  def startRule(grammar: Grammar): NonTerminalRule[?] = NonTerminalRule(
+    ExtraStarting,
+    List(grammar.start),
+    {case List(v) => v}
   )
   private def seqToMap[A, B](seq: Seq[(A, Set[B])]): Map[A, Set[B]] =
     seq.groupMapReduce(_._1)(_._2)(_ ++ _)

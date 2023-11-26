@@ -1,6 +1,6 @@
 package eliseevh.parsergen
 
-import eliseevh.parsergen.grammar.Rule
+import eliseevh.parsergen.generic.grammar.NonTerminalRule
 import eliseevh.parsergen.parser.state.MultiState
 
 package object parser {
@@ -8,7 +8,7 @@ package object parser {
 
   object Accept extends Action
 
-  final case class Reduce(rule: Rule) extends Action
+  final case class Reduce(rule: NonTerminalRule[?]) extends Action
 
   final case class Shift(nextState: MultiState) extends Action
 }
