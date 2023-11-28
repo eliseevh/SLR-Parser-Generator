@@ -1,0 +1,7 @@
+fun func(x, y) {
+  return x + y - x and y;
+}
+let a = 7;
+let b = -3;
+a = a and b or func(a, a - b);
+println(a);

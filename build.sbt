@@ -7,7 +7,8 @@ lazy val root = (project in file("."))
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-reflect" % languageVersion,
-      "org.scala-lang" % "scala-compiler" % languageVersion
-    ),
+      "org.scala-lang" % "scala-compiler" % languageVersion,
+      "junit" % "junit" % "4.13.2"
+      ),
     name := "parser-gen"
   )

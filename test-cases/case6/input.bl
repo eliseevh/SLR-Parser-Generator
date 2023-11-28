@@ -1,0 +1,6 @@
+3 + 4;
+println(5);
+
+for (i in 0..3 + 5
+-i) {let j = i + 2;
+ -j;}

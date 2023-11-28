@@ -1,0 +1,6 @@
+let a = readint;
+let b = readint;
+let tmp = a;
+a = b;
+b = tmp;
+println(a, b, readint and tmp, tmp);

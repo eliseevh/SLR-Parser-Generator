@@ -1,13 +1,12 @@
 package eliseevh.parsergen.grammar
 
-import eliseevh.parsergen.generic.grammar.NonTerminalRule
-import eliseevh.parsergen.generic.lexer.TerminalRule
-import eliseevh.parsergen.generic.{NonTerminalDescriptor, TerminalDescriptor}
+import eliseevh.parsergen.grammar.lexer.{TerminalDescriptor, TerminalRule}
+import eliseevh.parsergen.grammar.parser.{NonTerminalDescriptor, NonTerminalRule}
 
 case class Grammar(
     start: NonTerminalDescriptor[?],
     nonTerminalRules: Set[NonTerminalRule[?]],
-    terminalRules: Set[TerminalRule[?]],
+    terminalRules: List[TerminalRule[?]],
     nonTerminals: Set[NonTerminalDescriptor[?]],
     terminals: Set[TerminalDescriptor[?]]
 )

@@ -1,0 +1,5 @@
+fun gcd(a, b) {
+    if (a == 0) {return b;} else return gcd(b % a, a);
+}
+
+println(gcd(5,8), gcd(200, 25), gcd(6, 15));

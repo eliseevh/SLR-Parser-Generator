@@ -1,0 +1,10 @@
+fun max(a, b) {
+    if (a < b) {return b;}
+    return a;
+}
+
+fun min(a, b) {
+    return a + b - max(a, b);
+}
+let i = 0;
+for (i in min(1000, 10)..max(1000, 10)) { let j = i + 10; println(j);}
