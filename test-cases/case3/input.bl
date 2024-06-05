@@ -3,8 +3,8 @@ fun max(a, b) {
     return a;
 }
 
-fun min(a, b) {
+fun min(a: int, b: int) {
     return a + b - max(a, b);
 }
-let i = 0;
+let i :int= 0;
 for (i in min(1000, 10)..max(1000, 10)) { let j = i + 10; println(j);}

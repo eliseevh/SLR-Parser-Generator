@@ -36,12 +36,14 @@ object GoodLangToCGrammar {
     in <- terminal"in"
     treturn <- terminal"treturn"
     fun <- terminal"fun"
+    tint <- terminal"tint"
 
     readint <- terminal"readint"
     tprintln <- terminal"tprintln"
 
     range <- terminal".."
     semicolon <- terminal";"
+    colon <- terminal":"
 
     eq <- terminal"="
     comma <- terminal","
@@ -87,7 +89,9 @@ object GoodLangToCGrammar {
     _ <- rcurly --> "\\}"
     _ <- int --> "-?[1-9][0-9]*|0"
     _ <- bool --> "true|false"
+    _ <- tint --> "int"
     _ <- id --> "[a-zA-Z_][a-zA-Z_0-9]*"
+    _ <- colon --> ":"
     _ <- skip("[ \\t\\n\\r\\f]+")
 
     program <- nonTerminal"program" withValue ofType[String]
@@ -127,6 +131,9 @@ object GoodLangToCGrammar {
     _ <- idseq --> id ~: comma ~: idseq ~: end[List[String]] withConversion {
       i => _ => rest => i :: rest
     }
+    _ <- idseq --> id ~: colon ~: tint ~: comma ~: idseq ~: end[List[String]] withConversion {
+      i => _ => _ => _ => rest => i :: rest
+    }
     _ <- idSeq --> lparen ~: idseq ~: rparen ~: end[
       List[String]
     ] withConversion { _ => values => _ =>
@@ -135,6 +142,7 @@ object GoodLangToCGrammar {
     _ <- idseq --> id withConversion {
       List(_)
     }
+    _ <- idseq --> id ~: colon ~: tint ~: end[List[String]] withConversion { v => _ => _ => List(v) }
     _ <- idseq --> end[List[String]] withConversion Nil
 
     _ <- def_ --> fun ~: id ~: idSeq ~: block ~: end[String] withConversion {
@@ -173,6 +181,8 @@ object GoodLangToCGrammar {
     _ <- assign --> let ~: id ~: eq ~: expr ~: end[String] withConversion {
       _ => name => e => value => "int64_t " ++ name ++ e ++ value
     }
+    - <- assign --> let ~: id ~: colon ~: tint ~: eq ~: expr ~: end[String] withConversion {
+      _ => _ => name => _ => e => value => "int64_t " ++ name ++ e ++ value}
     _ <- assign --> let ~: idSeq ~: eq ~: exprSeq ~: end[
       String
     ] withConversion { _ => names => e => values =>

@@ -14,7 +14,7 @@ min(a, b){return a+b-max(a, b);
 }
 
 int main() {
-int64_t i=0;
+int64_t :=0;
 for (int64_t i = min(1000, 10);i < max(1000, 10); i++) {int64_t j=i+10;
 printf("%ld\n", j);
 
